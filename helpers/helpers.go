@@ -16,6 +16,8 @@ import (
 
 type Envelope map[string]interface{}
 
+// ReadIDParam extracts and parses the "id" parameter from the given HTTP request.
+// It returns the parsed ID as an int64 value. If the ID is invalid or missing, it returns an error.
 func ReadIDParam(r *http.Request) (int64, error) {
 	params := httprouter.ParamsFromContext(r.Context())
 	id, err := strconv.ParseInt(params.ByName("id"), 10, 64)
@@ -27,6 +29,8 @@ func ReadIDParam(r *http.Request) (int64, error) {
 	return id, nil
 }
 
+// WriteJSON writes the provided data as a JSON response to the http.ResponseWriter.
+// It sets the provided status code, headers, and content type.
 func WriteJSON(w http.ResponseWriter, status int, data Envelope, headers http.Header) {
 	js, _ := json.MarshalIndent(data, "", "\t")
 
@@ -41,6 +45,10 @@ func WriteJSON(w http.ResponseWriter, status int, data Envelope, headers http.He
 	w.Write(js)
 }
 
+// ReadJSON reads and decodes JSON data from the request body into the provided destination object.
+// It enforces a maximum request body size of 1MB and disallows unknown fields in the JSON.
+// If any errors occur during decoding, appropriate error messages are returned.
+// The function returns nil if the decoding is successful.
 func ReadJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
 	maxBytes := 1_048_576 // 1MB max request body
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
@@ -94,6 +102,8 @@ func ReadJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
 	return nil
 }
 
+// ReadString reads a string value from the given url.Values object based on the provided key.
+// If the value is empty, it returns the defaultValue.
 func ReadString(qs url.Values, key string, defaultValue string) string {
 	s := qs.Get(key)
 
@@ -104,6 +114,9 @@ func ReadString(qs url.Values, key string, defaultValue string) string {
 	return s
 }
 
+// ReadCSV reads a comma-separated value (CSV) string from the given query string parameter.
+// If the parameter is empty, it returns the provided defaultValue.
+// Otherwise, it splits the CSV string and returns the resulting slice of strings.
 func ReadCSV(qs url.Values, key string, defaultValue []string) []string {
 	csv := qs.Get(key)
 
@@ -114,6 +127,9 @@ func ReadCSV(qs url.Values, key string, defaultValue []string) []string {
 	return strings.Split(csv, ",")
 }
 
+// ReadInt reads an integer value from the given URL query string parameter.
+// If the parameter is not present or cannot be parsed as an integer, it returns the defaultValue.
+// If a validator is provided, it adds an error to the validator if the value is not a valid integer.
 func ReadInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
 	s := qs.Get(key)
 
