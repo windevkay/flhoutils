@@ -30,7 +30,7 @@ func ServerErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
 
 // NotFoundResponse sends a HTTP 404 Not Found response to the client with the specified message.
 func NotFoundResponse(w http.ResponseWriter, r *http.Request) {
-	message := "the requested resource could not be found"
+	message := "The requested resource could not be found"
 	ErrorResponse(w, r, http.StatusNotFound, message)
 }
 
@@ -39,7 +39,7 @@ func NotFoundResponse(w http.ResponseWriter, r *http.Request) {
 // It generates an error message indicating that the specified HTTP method is not supported for the requested resource,
 // and calls the ErrorResponse function to send the error response to the client.
 func MethodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
-	message := fmt.Sprintf("the %s method is not supported for this resource", r.Method)
+	message := fmt.Sprintf("The %s method is not supported for this resource", r.Method)
 	ErrorResponse(w, r, http.StatusMethodNotAllowed, message)
 }
 
@@ -59,7 +59,7 @@ func FailedValidationResponse(w http.ResponseWriter, r *http.Request, errors map
 // EditConflictResponse handles the response for an edit conflict (mainly arising from race conditions).
 // It sends an error response with the specified message and HTTP status code.
 func EditConflictResponse(w http.ResponseWriter, r *http.Request) {
-	message := "unable to update the record, please try again"
+	message := "Unable to update the record, please try again"
 	ErrorResponse(w, r, http.StatusConflict, message)
 }
 
@@ -67,14 +67,14 @@ func EditConflictResponse(w http.ResponseWriter, r *http.Request) {
 // It takes in the http.ResponseWriter and http.Request as parameters.
 // It calls the ErrorResponse function to send the response with the appropriate status code and message.
 func RateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
-	message := "rate limit exceeded"
+	message := "Rate limit exceeded"
 	ErrorResponse(w, r, http.StatusTooManyRequests, message)
 }
 
 // InvalidCredentialsResponse sends an HTTP response with a status code of 401 (Unauthorized)
 // and a message indicating invalid authentication credentials.
 func InvalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {
-	message := "invalid authentication credentials"
+	message := "Invalid authentication credentials"
 	ErrorResponse(w, r, http.StatusUnauthorized, message)
 }
 
@@ -84,20 +84,20 @@ func InvalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {
 func InvalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("WWW-Authenticate", "Bearer")
 
-	message := "invalid or missing authentication token"
+	message := "Invalid or missing authentication token"
 	ErrorResponse(w, r, http.StatusUnauthorized, message)
 }
 
 // AuthenticationRequiredResponse sends an authentication required response to the client.
 // It sets the HTTP status code to 401 Unauthorized and includes the provided message in the response body.
 func AuthenticationRequiredResponse(w http.ResponseWriter, r *http.Request) {
-	message := "you must be authenticated to access this resource"
+	message := "You must be authenticated to access this resource"
 	ErrorResponse(w, r, http.StatusUnauthorized, message)
 }
 
 // InactiveAccountResponse sends a response indicating that the user account is inactive.
 // It takes the http.ResponseWriter and http.Request as parameters.
 func InactiveAccountResponse(w http.ResponseWriter, r *http.Request) {
-	message := "your user account must be activated to access this resource"
+	message := "Your user account must be activated to access this resource"
 	ErrorResponse(w, r, http.StatusForbidden, message)
 }
