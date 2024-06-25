@@ -5,16 +5,57 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/windevkay/flhoutils/validator"
 )
 
 type Envelope map[string]interface{}
+
+const (
+	upperChars string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digits     string = "0123456789"
+)
+
+// GenerateUniqueId generates a unique identifier of the specified length.
+// It uses a combination of digits and uppercase characters from the charset.
+// The generated identifier is returned as a string.
+func GenerateUniqueId(length int) string {
+	charset := digits + upperChars
+	generatedId := make([]byte, length)
+
+	for index := range generatedId {
+		generatedId[index] = charset[rand.Intn(len(charset))]
+	}
+
+	return string(generatedId)
+}
+
+// RunInBackground runs the given function in a separate goroutine and adds it to the wait group.
+// The wait group is incremented before the goroutine starts and decremented after it finishes.
+// If the function panics, it is recovered and the panic message can be logged to a logger service.
+func RunInBackground(fn func(), wg *sync.WaitGroup) {
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		// defer func() {
+		// 	if err := recover(); err != nil {
+		// 		//write to logger service here - goroutine
+		// 		//app.logger.Error(fmt.Sprintf("%v", err))
+		// 	}
+		// }()
+
+		fn()
+	}()
+}
 
 // ReadIDParam extracts and parses the "id" parameter from the given HTTP request.
 // It returns the parsed ID as an int64 value. If the ID is invalid or missing, it returns an error.
@@ -36,8 +77,10 @@ func WriteJSON(w http.ResponseWriter, status int, data Envelope, headers http.He
 
 	js = append(js, '\n')
 
-	for key, value := range headers {
-		w.Header()[key] = value
+	for key, values := range headers {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
