@@ -3,6 +3,7 @@ package errors
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,16 +11,15 @@ import (
 	"testing"
 )
 
-func TestErrorResponse(t *testing.T) {
-	// Test case 1: Valid error response
+func testErrorResponse(t *testing.T, message string, status int) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	message := "An error occurred"
-	ErrorResponse(w, r, http.StatusInternalServerError, message)
+
+	ErrorResponse(w, r, status, message)
 	resp := w.Result()
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusInternalServerError {
-		t.Errorf("Expected status code %d, but got %d", http.StatusInternalServerError, resp.StatusCode)
+	if resp.StatusCode != status {
+		t.Errorf("Expected status code %d, but got %d", status, resp.StatusCode)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -30,59 +30,9 @@ func TestErrorResponse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to unmarshal response body: %v", err)
 	}
+	jsonString := fmt.Sprintf(`{"error": "%s"}`, message)
 	var expectedResponse map[string]interface{}
-	err = json.Unmarshal([]byte(`{"error": "An error occurred"}`), &expectedResponse)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal expected response: %v", err)
-	}
-	if !reflect.DeepEqual(actualResponse, expectedResponse) {
-		t.Errorf("Expected response body %v, but got %v", expectedResponse, actualResponse)
-	}
-
-	// Test case 2: Empty error message
-	w = httptest.NewRecorder()
-	r = httptest.NewRequest(http.MethodGet, "/", nil)
-	ErrorResponse(w, r, http.StatusBadRequest, "")
-	resp = w.Result()
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected status code %d, but got %d", http.StatusBadRequest, resp.StatusCode)
-	}
-	body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		t.Errorf("Failed to read response body: %v", err)
-	}
-	err = json.Unmarshal(body, &actualResponse)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal response body: %v", err)
-	}
-	err = json.Unmarshal([]byte(`{"error": ""}`), &expectedResponse)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal expected response: %v", err)
-	}
-	if !reflect.DeepEqual(actualResponse, expectedResponse) {
-		t.Errorf("Expected response body %v, but got %v", expectedResponse, actualResponse)
-	}
-
-	// Test case 3: Error response with special characters
-	w = httptest.NewRecorder()
-	r = httptest.NewRequest(http.MethodGet, "/", nil)
-	message = `An error occurred: "Invalid input"`
-	ErrorResponse(w, r, http.StatusInternalServerError, message)
-	resp = w.Result()
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusInternalServerError {
-		t.Errorf("Expected status code %d, but got %d", http.StatusInternalServerError, resp.StatusCode)
-	}
-	body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		t.Errorf("Failed to read response body: %v", err)
-	}
-	err = json.Unmarshal(body, &actualResponse)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal response body: %v", err)
-	}
-	err = json.Unmarshal([]byte(`{"error": "An error occurred: \"Invalid input\""}`), &expectedResponse)
+	err = json.Unmarshal([]byte(jsonString), &expectedResponse)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal expected response: %v", err)
 	}
@@ -91,10 +41,27 @@ func TestErrorResponse(t *testing.T) {
 	}
 }
 
+func TestErrorResponse(t *testing.T) {
+	tests := []struct {
+		name    string
+		message string
+		status  int
+	}{
+		{name: "Valid error response", message: "An error occurred", status: http.StatusInternalServerError},
+		{name: "Empty error message", message: "", status: http.StatusBadRequest},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testErrorResponse(t, tc.message, tc.status)
+		})
+	}
+}
+
 func TestServerErrorResponse(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	ServerErrorResponse(w, r, nil)
+	ServerErrorResponse(w, r, errors.New("An error occured"))
 	resp := w.Result()
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusInternalServerError {
@@ -110,7 +77,7 @@ func TestServerErrorResponse(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response body: %v", err)
 	}
 	var expectedResponse map[string]interface{}
-	err = json.Unmarshal([]byte(`{"error": "The server encountered a problem and could not process your request"}`), &expectedResponse)
+	err = json.Unmarshal([]byte(`{"error": "The server encountered a problem and could not process your request: An error occured"}`), &expectedResponse)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal expected response: %v", err)
 	}

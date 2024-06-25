@@ -24,7 +24,7 @@ func ErrorResponse(w http.ResponseWriter, r *http.Request, status int, message a
 // and sends a message indicating that the server encountered a problem
 // and could not process the request.
 func ServerErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
-	message := "The server encountered a problem and could not process your request"
+	message := "The server encountered a problem and could not process your request: " + err.Error()
 	ErrorResponse(w, r, http.StatusInternalServerError, message)
 }
 
