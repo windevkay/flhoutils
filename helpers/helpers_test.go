@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -132,5 +133,68 @@ func checkResponseBody(t *testing.T, message string, resp *http.Response) {
 	}
 	if !reflect.DeepEqual(actualResponse, expectedResponse) {
 		t.Errorf("Expected response body %v, but got %v", expectedResponse, actualResponse)
+	}
+}
+
+func TestReadJSON(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{name: "Valid request body", err: nil},
+		{name: "Unknown key in request body", err: errors.New(`body contains unknown key "oddKey"`)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			checkValidRequestBody(t, tc.name, tc.err)
+			checkUnknownKeyInRequestBody(t, tc.name, tc.err)
+		})
+	}
+}
+
+func checkValidRequestBody(t *testing.T, testName string, expectedErr error) {
+	if testName == "Valid request body" {
+		w := httptest.NewRecorder()
+		requestBodyContent := map[string]interface{}{
+			"data": "value",
+		}
+		requestBodyBytes, err := json.Marshal(requestBodyContent)
+		if err != nil {
+			t.Fatalf("Failed to marshal request body: %v", err)
+		}
+		requestBodyReader := bytes.NewReader(requestBodyBytes)
+		r := httptest.NewRequest("POST", "/", requestBodyReader)
+		var dst struct {
+			Data string `json:"data"`
+		}
+
+		err = ReadJSON(w, r, &dst)
+		if err != expectedErr {
+			t.Fatalf("Expected error %v, but got %v", expectedErr, err)
+		}
+	}
+}
+
+func checkUnknownKeyInRequestBody(t *testing.T, testName string, expectedErr error) {
+	if testName == "Unknown key in request body" {
+		w := httptest.NewRecorder()
+		requestBodyContent := map[string]interface{}{
+			"oddKey": "oddValue",
+		}
+		requestBodyBytes, err := json.Marshal(requestBodyContent)
+		if err != nil {
+			t.Fatalf("Failed to marshal request body: %v", err)
+		}
+		requestBodyReader := bytes.NewReader(requestBodyBytes)
+		r := httptest.NewRequest("POST", "/", requestBodyReader)
+		var dst struct {
+			Data string `json:"data"`
+		}
+
+		err = ReadJSON(w, r, &dst)
+		if err.Error() != expectedErr.Error() {
+			t.Fatalf("Expected error %v, but got %v", expectedErr, err)
+		}
 	}
 }
