@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/julienschmidt/httprouter"
@@ -143,13 +144,52 @@ func TestReadJSON(t *testing.T) {
 	}{
 		{name: "Valid request body", err: nil},
 		{name: "Unknown key in request body", err: errors.New(`body contains unknown key "oddKey"`)},
+		{name: "Empty request body", err: errors.New("body must not be empty")},
+		{name: "Badly formed JSON", err: errors.New("body contains badly-formed JSON")},
+		{name: "Large request body", err: errors.New("body must not be larger than 1048576 bytes")},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			checkValidRequestBody(t, tc.name, tc.err)
 			checkUnknownKeyInRequestBody(t, tc.name, tc.err)
+			checkEmptyRequestBody(t, tc.name, tc.err)
+			checkBadlyFormedJSON(t, tc.name, tc.err)
+			checkLargeRequestBody(t, tc.name, tc.err)
 		})
+	}
+}
+
+func checkLargeRequestBody(t *testing.T, testName string, expectedErr error) {
+	if testName == "Large request body" {
+		w := httptest.NewRecorder()
+
+		jsonSnippet := `{"data":"value"},`
+		repeatCount := (1_048_576 / len(jsonSnippet)) + 1
+		largeJSON := "[" + strings.Repeat(jsonSnippet, repeatCount)
+		largeJSON = strings.TrimRight(largeJSON, ",") + "]"
+
+		reader := bytes.NewReader([]byte(largeJSON))
+		r := httptest.NewRequest("POST", "/", reader)
+		var dst struct {
+			Data string `json:"data"`
+		}
+
+		err := ReadJSON(w, r, &dst)
+		assert.Equal(t, err.Error(), expectedErr.Error())
+	}
+}
+
+func checkEmptyRequestBody(t *testing.T, testName string, expectedErr error) {
+	if testName == "Empty request body" {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("POST", "/", nil)
+		var dst struct {
+			Data string `json:"data"`
+		}
+
+		err := ReadJSON(w, r, &dst)
+		assert.Equal(t, err.Error(), expectedErr.Error())
 	}
 }
 
@@ -170,9 +210,21 @@ func checkValidRequestBody(t *testing.T, testName string, expectedErr error) {
 		}
 
 		err = ReadJSON(w, r, &dst)
-		if err != expectedErr {
-			t.Fatalf("Expected error %v, but got %v", expectedErr, err)
+		assert.Equal(t, err, expectedErr)
+	}
+}
+
+func checkBadlyFormedJSON(t *testing.T, testName string, expectedErr error) {
+	if testName == "Badly formed JSON" {
+		w := httptest.NewRecorder()
+		badJSON := `{"data": "some value"`
+		r := httptest.NewRequest("POST", "/", strings.NewReader(badJSON))
+		var dst struct {
+			Data string `json:"data"`
 		}
+
+		err := ReadJSON(w, r, &dst)
+		assert.Equal(t, err.Error(), expectedErr.Error())
 	}
 }
 
@@ -193,8 +245,6 @@ func checkUnknownKeyInRequestBody(t *testing.T, testName string, expectedErr err
 		}
 
 		err = ReadJSON(w, r, &dst)
-		if err.Error() != expectedErr.Error() {
-			t.Fatalf("Expected error %v, but got %v", expectedErr, err)
-		}
+		assert.Equal(t, err.Error(), expectedErr.Error())
 	}
 }
