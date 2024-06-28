@@ -9,12 +9,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/windevkay/flhoutils/assert"
+	"github.com/windevkay/flhoutils/validator"
 )
 
 func TestGenerateUniqueId(t *testing.T) {
@@ -246,5 +248,112 @@ func checkUnknownKeyInRequestBody(t *testing.T, testName string, expectedErr err
 
 		err = ReadJSON(w, r, &dst)
 		assert.Equal(t, err.Error(), expectedErr.Error())
+	}
+}
+
+func TestReadString(t *testing.T) {
+
+	tests := []struct {
+		name string
+		args map[string]string
+		want string
+	}{
+		{
+			name: "Returns string value of valid key",
+			args: map[string]string{"key": "myValidKey", "default": "myDefaultValue"},
+			want: "myValidValue",
+		},
+		{
+			name: "Returns default string value for invalid key",
+			args: map[string]string{"key": "myInvalidKey", "default": "myDefaultValue"},
+			want: "myDefaultValue",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			values := url.Values{}
+			values.Add("myValidKey", "myValidValue")
+
+			result := ReadString(values, tc.args["key"], tc.args["default"])
+			assert.Equal(t, result, tc.want)
+		})
+	}
+}
+
+func TestReadCSV(t *testing.T) {
+
+	tests := []struct {
+		name         string
+		key          string
+		defaultValue []string
+		want         []string
+	}{
+		{
+			name:         "Returns string[] value of valid key",
+			key:          "myValidKey",
+			defaultValue: []string{""},
+			want:         []string{"myValidValue1", "myValidValue2"},
+		},
+		{
+			name:         "Returns default string[] value for invalid key",
+			key:          "myInvalidKey",
+			defaultValue: []string{""},
+			want:         []string{""},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			values := url.Values{}
+			values.Add("myValidKey", "myValidValue1,myValidValue2")
+
+			result := ReadCSV(values, tc.key, tc.defaultValue)
+			assert.Equal(t, result[0], tc.want[0])
+		})
+	}
+}
+
+func TestReadInt(t *testing.T) {
+
+	tests := []struct {
+		name         string
+		key          string
+		defaultValue int
+		want         int
+	}{
+		{
+			name: "Returns int value of valid key",
+			key:  "myValidKey",
+			want: 1,
+		},
+		{
+			name: "Returns default int value for invalid key",
+			key:  "myInvalidKey",
+		},
+		{
+			name: "Validation error on bad key value",
+			key:  "myValidKey",
+		},
+	}
+
+	v := validator.New()
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			values := url.Values{}
+			if tc.name == "Validation error on bad key value" {
+				values.Add("myValidKey", "x")
+			} else {
+				values.Add("myValidKey", "1")
+			}
+
+			result := ReadInt(values, tc.key, tc.defaultValue, v)
+			assert.Equal(t, result, tc.want)
+
+			if tc.name == "Validation error on bad key value" {
+				assert.Equal(t, v.Valid(), false)
+			}
+		})
 	}
 }
